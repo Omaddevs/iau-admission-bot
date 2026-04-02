@@ -1,0 +1,49 @@
+# Environments
+.env
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+database/database.db
+
+# Media uploads and generated files
+media/
+media/archives/
+media/documents/
+media/exports/
+media/photos/
+export/
+archives/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyBuilder
+.pybuilder/
+target/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
