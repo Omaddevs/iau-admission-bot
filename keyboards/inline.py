@@ -79,9 +79,29 @@ def admin_menu():
             [InlineKeyboardButton(text="🟡 Jarayonda qolganlar", callback_data="admin_qolganlar")],
             [InlineKeyboardButton(text="📂 Arizalar", callback_data="admin_arizalar")],
             [InlineKeyboardButton(text="📥 Excel yuklab olish", callback_data="admin_excel")],
-            [InlineKeyboardButton(text="📨 Xabar yuborish", callback_data="admin_xabar")]
+            [InlineKeyboardButton(text="📨 Xabar yuborish", callback_data="admin_xabar")],
+            [InlineKeyboardButton(text="⚙️ Sozlamalar", callback_data="admin_settings")]
         ]
     )
+
+def settings_menu():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👥 Guruh ID (Bildirishnoma)", callback_data="settings_group")],
+            [InlineKeyboardButton(text="👨‍💻 Adminlar", callback_data="settings_admins")],
+            [InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_menu")]
+        ]
+    )
+
+def admins_list_keyboard(admins_list):
+    keyboard = []
+    for adm in admins_list:
+        keyboard.append([InlineKeyboardButton(text=f"Admin (ID: {adm})", callback_data=f"ignore_btn")])
+    
+    keyboard.append([InlineKeyboardButton(text="➕ Yangi qo'shish", callback_data="add_admin")])
+    keyboard.append([InlineKeyboardButton(text="➖ O'chirish (ID orqali)", callback_data="remove_admin")])
+    keyboard.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_settings")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def xabar_turi_keyboard():
     return InlineKeyboardMarkup(

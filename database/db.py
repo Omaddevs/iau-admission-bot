@@ -29,6 +29,50 @@ async def init_db():
                 status TEXT
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admins (
+                telegram_id INTEGER PRIMARY KEY
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+        await db.commit()
+
+async def get_all_admins():
+    from config import ADMIN_ID
+    admins = [int(ADMIN_ID)]
+    try:
+        async with aiosqlite.connect(DB_NAME) as db:
+            async with db.execute("SELECT telegram_id FROM admins") as cursor:
+                rows = await cursor.fetchall()
+                admins.extend([row[0] for row in rows])
+    except:
+        pass
+    return list(set(admins))
+
+async def add_admin(telegram_id):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("INSERT OR IGNORE INTO admins (telegram_id) VALUES (?)", (telegram_id,))
+        await db.commit()
+
+async def remove_admin(telegram_id):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("DELETE FROM admins WHERE telegram_id = ?", (telegram_id,))
+        await db.commit()
+
+async def get_group_id():
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT value FROM settings WHERE key = 'group_id'") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None
+
+async def set_group_id(group_id):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('group_id', ?)", (str(group_id),))
         await db.commit()
 
 async def get_user(telegram_id):

@@ -22,3 +22,8 @@ class AdminMessage(StatesGroup):
     barchaga = State()
     bittaga_id = State()
     bittaga_xabar = State()
+
+class AdminSettings(StatesGroup):
+    set_group_id = State()
+    add_admin = State()
+    remove_admin = State()

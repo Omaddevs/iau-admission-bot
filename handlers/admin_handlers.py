@@ -4,21 +4,22 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 
 from config import ADMIN_ID
-from keyboards.inline import admin_menu, arizalar_list_keyboard, back_to_admin_keyboard, xabar_turi_keyboard, user_detail_keyboard
-from states.forms import AdminMessage
-from database.db import get_stats, get_all_completed_users, get_user, get_all_users_for_message, get_all_started_users, reset_user
+from keyboards.inline import admin_menu, arizalar_list_keyboard, back_to_admin_keyboard, xabar_turi_keyboard, user_detail_keyboard, settings_menu, admins_list_keyboard
+from states.forms import AdminMessage, AdminSettings
+from database.db import get_stats, get_all_completed_users, get_user, get_all_users_for_message, get_all_started_users, reset_user, get_all_admins, add_admin, remove_admin, get_group_id, set_group_id
 from utils.excel_exporter import export_users_to_excel
 from utils.archive import create_user_archive
 
 import os
 
 class IsAdmin(BaseFilter):
-    async def __call__(self, message: Message) -> bool:
-        return message.from_user.id == ADMIN_ID
+    async def __call__(self, event: Message | CallbackQuery) -> bool:
+        admins = await get_all_admins()
+        return event.from_user.id in admins
 
 router = Router()
 router.message.filter(IsAdmin())
-# For callbacks we also should enforce admin filter somewhat, but it's okay for now if menus are restricted
+router.callback_query.filter(IsAdmin())
 
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
@@ -26,7 +27,6 @@ async def cmd_admin(message: Message):
     await message.answer(text, parse_mode="HTML", reply_markup=admin_menu())
 
 @router.callback_query(F.data == "admin_menu")
-@router.callback_query(IsAdmin(), F.data == "admin_menu")
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     text = "🧑‍💻 <b>Admin Panelga xush kelibsiz!</b>\n\nQuyidagi menyudan kerakli bo'limni tanlang 👇"
@@ -34,8 +34,6 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "admin_stats")
 async def process_stats(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     stats = await get_stats()
     text = (
         "📊 <b>Statistika</b>\n\n"
@@ -58,8 +56,6 @@ async def process_arizalar(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_qolganlar")
 async def process_qolganlar(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     users = await get_all_started_users()
     if not users:
         await callback.message.edit_text("🚫 Hali jarayonda qolganlar yo'q.", reply_markup=back_to_admin_keyboard())
@@ -69,8 +65,6 @@ async def process_qolganlar(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("user_"))
 async def process_user_detail(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     user_id = int(callback.data.split("_")[1])
     user = await get_user(user_id)
     
@@ -106,8 +100,6 @@ async def process_user_detail(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("msguser_"))
 async def process_msg_specific_user(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
-        return
     user_id = int(callback.data.split("_")[1])
     await state.update_data(user_id=user_id)
     await callback.message.answer(f"✍️ <code>{user_id}</code> ga yubormoqchi bo'lgan xabaringizni kiriting:", parse_mode="HTML")
@@ -115,8 +107,6 @@ async def process_msg_specific_user(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("deluser_"))
 async def process_del_specific_user(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     user_id = int(callback.data.split("_")[1])
     await reset_user(user_id)
     await callback.answer("✅ Foydalanuvchi o'chirildi!", show_alert=True)
@@ -124,8 +114,6 @@ async def process_del_specific_user(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_excel")
 async def process_excel(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     users = await get_all_completed_users()
     if not users:
         await callback.message.edit_text("🚫 Ma'lumot yo'q.", reply_markup=back_to_admin_keyboard())
@@ -140,14 +128,10 @@ async def process_excel(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_xabar")
 async def process_xabar_menu(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     await callback.message.edit_text("📨 Xabar yuborish turini tanlang:", reply_markup=xabar_turi_keyboard())
 
 @router.callback_query(F.data == "xabar_barchaga")
 async def xabar_barchaga(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
-        return
     await callback.message.edit_text("✍️ Barcha userlarga yuboriladigan xabarni kiriting:\n\n<i>Bekor qilish uchun /cancel yozing.</i>", parse_mode="HTML")
     await state.set_state(AdminMessage.barchaga)
 
@@ -172,8 +156,6 @@ async def process_barchaga_xabar(message: Message, state: FSMContext, bot: Bot):
 
 @router.callback_query(F.data == "xabar_bittaga")
 async def xabar_bittaga(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id != ADMIN_ID:
-        return
     await callback.message.edit_text("👤 User ID ni kiriting:", parse_mode="HTML")
     await state.set_state(AdminMessage.bittaga_id)
 
@@ -199,3 +181,59 @@ async def process_bittaga_xabar(message: Message, state: FSMContext, bot: Bot):
         await message.answer(f"❌ Xabar yuborishda xatolik yuz berdi: {e}")
         
     await state.clear()
+
+@router.callback_query(F.data == "admin_settings")
+async def process_settings_menu(callback: CallbackQuery):
+    await callback.message.edit_text("⚙️ <b>Sozlamalar paneli</b>\n\nNimani sozlamoqchisiz?", reply_markup=settings_menu(), parse_mode="HTML")
+
+@router.callback_query(F.data == "settings_group")
+async def process_settings_group(callback: CallbackQuery, state: FSMContext):
+    current_group = await get_group_id()
+    text = f"👥 <b>Guruh ID</b>\n\nHozirgi ulangan guruh: <code>{current_group or 'Ulangan emas'}</code>\n\nYangi guruh ID ni kiriting (yoki /cancel yozing):"
+    await callback.message.edit_text(text, parse_mode="HTML")
+    await state.set_state(AdminSettings.set_group_id)
+
+@router.message(AdminSettings.set_group_id)
+async def handle_set_group_id(message: Message, state: FSMContext):
+    await set_group_id(message.text)
+    await message.answer(f"✅ Guruh ID muvaffaqiyatli saqlandi: <code>{message.text}</code>\n\nYangi arizalar ushbu guruhga tushadi.", parse_mode="HTML")
+    await state.clear()
+    
+@router.callback_query(F.data == "settings_admins")
+async def process_settings_admins(callback: CallbackQuery):
+    admins = await get_all_admins()
+    await callback.message.edit_text("👨‍💻 <b>Adminlar ro'yxati</b>", parse_mode="HTML", reply_markup=admins_list_keyboard(admins))
+
+@router.callback_query(F.data == "add_admin")
+async def add_admin_handler(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("➕ Yangi adminning Telegram ID raqamini kiriting:", parse_mode="HTML")
+    await state.set_state(AdminSettings.add_admin)
+
+@router.message(AdminSettings.add_admin)
+async def process_add_admin(message: Message, state: FSMContext):
+    if not message.text.isdigit():
+        await message.answer("❌ Noto'g'ri ID. Raqam kiriting:")
+        return
+    await add_admin(int(message.text))
+    await message.answer(f"✅ Admin qo'shildi: <code>{message.text}</code>", parse_mode="HTML")
+    await state.clear()
+
+@router.callback_query(F.data == "remove_admin")
+async def remove_admin_handler(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("➖ O'chirmoqchi bo'lgan adminning Telegram ID sini yozing:", parse_mode="HTML")
+    await state.set_state(AdminSettings.remove_admin)
+
+@router.message(AdminSettings.remove_admin)
+async def process_remove_admin(message: Message, state: FSMContext):
+    if not message.text.isdigit():
+        await message.answer("❌ Noto'g'ri ID. Raqam kiriting:")
+        return
+    admin_id = int(message.text)
+    from config import ADMIN_ID
+    if admin_id == int(ADMIN_ID):
+        await message.answer("⚠️ Asosiy bosh adminni o'chirib bo'lmaydi!")
+    else:
+        await remove_admin(admin_id)
+        await message.answer(f"✅ Admin o'chirildi: <code>{message.text}</code>", parse_mode="HTML")
+    await state.clear()
+

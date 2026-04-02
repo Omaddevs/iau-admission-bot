@@ -271,8 +271,11 @@ async def process_tasdiqlash(callback: CallbackQuery, state: FSMContext):
         await state.clear()
         
         try:
-            admin_msg = f"Yangi ariza: {data.get('ism')} {data.get('familiya')} - {data.get('yonalish')}"
-            await callback.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+            from database.db import get_group_id
+            dyn_group = await get_group_id()
+            target_id = dyn_group if dyn_group else ADMIN_ID
+            admin_msg = f"<b>🔔 Yangi ariza tushdi!</b>\n\n<b>F.I.O:</b> {data.get('ism')} {data.get('familiya')}\n<b>Yo'nalish:</b> {data.get('yonalish')}\n<b>Aloqa:</b> {data.get('telefon')}"
+            await callback.bot.send_message(chat_id=target_id, text=admin_msg, parse_mode="HTML")
         except:
             pass
     else:

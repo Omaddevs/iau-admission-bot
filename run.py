@@ -6,7 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from config import BOT_TOKEN, GROUP_ID
-from database.db import init_db, get_all_completed_users
+from database.db import init_db, get_all_completed_users, get_group_id
 from handlers import user_handlers, admin_handlers
 from utils.excel_exporter import export_users_to_excel
 
@@ -14,8 +14,11 @@ from utils.excel_exporter import export_users_to_excel
 logging.basicConfig(level=logging.INFO)
 
 async def send_auto_excel(bot: Bot):
-    if not GROUP_ID:
-        logging.warning("No GROUP_ID specified in .env, cannot send auto excel.")
+    dynamic_group_id = await get_group_id()
+    group_to_send = dynamic_group_id if dynamic_group_id else GROUP_ID
+    
+    if not group_to_send:
+        logging.warning("No GROUP_ID specified in .env or DB, cannot send auto excel.")
         return
         
     try:
@@ -27,7 +30,7 @@ async def send_auto_excel(bot: Bot):
         filepath = export_users_to_excel(users, "kunlik_arizalar.xlsx")
         document = FSInputFile(filepath)
         await bot.send_document(
-            chat_id=GROUP_ID,
+            chat_id=group_to_send,
             document=document,
             caption="⏰ <b>Avtomatik Excel Hisoboti</b>\n\nJami kelib tushgan arizalar.",
             parse_mode="HTML"
