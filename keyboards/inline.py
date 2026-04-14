@@ -72,6 +72,14 @@ def tasdiqlash_keyboard(lang="uz"):
         ]
     )
 
+def skip_keyboard(lang="uz"):
+    from utils.texts import TEXTS
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=TEXTS[lang]["skip_btn"], callback_data="skip_step")]
+        ]
+    )
+
 def admin_menu():
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -80,6 +88,7 @@ def admin_menu():
             [InlineKeyboardButton(text="📂 Arizalar", callback_data="admin_arizalar")],
             [InlineKeyboardButton(text="📥 Excel yuklab olish", callback_data="admin_excel")],
             [InlineKeyboardButton(text="📨 Xabar yuborish", callback_data="admin_xabar")],
+            [InlineKeyboardButton(text="🗑 Foydalanuvchini o'chirish", callback_data="admin_delete_user_prompt")],
             [InlineKeyboardButton(text="⚙️ Sozlamalar", callback_data="admin_settings")]
         ]
     )
@@ -138,5 +147,13 @@ def back_to_admin_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_menu")]
+        ]
+    )
+
+def confirm_delete_user_keyboard(user_id):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Ha, o'chirish", callback_data=f"confirmdel_{user_id}")],
+            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="admin_menu")]
         ]
     )

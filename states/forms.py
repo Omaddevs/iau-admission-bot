@@ -27,3 +27,4 @@ class AdminSettings(StatesGroup):
     set_group_id = State()
     add_admin = State()
     remove_admin = State()
+    delete_user_id = State()

@@ -26,6 +26,7 @@ TEXTS = {
         "phone_keyboard_text": "📱 Telefon raqamni yuborish",
         "confirm_yes": "✅ Roziman",
         "confirm_no": "❌ Yo‘q",
+        "skip_btn": "⏭ Tashlab ketish",
     },
     "ru": {
         "welcome": "👋 <b>Добро пожаловать!</b>\nВы начинаете процесс подачи заявления.\n\n⏳ Этот процесс займет 2-3 минуты.",
@@ -54,6 +55,7 @@ TEXTS = {
         "phone_keyboard_text": "📱 Отправить номер телефона",
         "confirm_yes": "✅ Согласен",
         "confirm_no": "❌ Нет",
+        "skip_btn": "⏭ Пропустить",
     },
     "en": {
         "welcome": "👋 <b>Welcome!</b>\nYou are starting the application process.\n\n⏳ This process will take 2-3 minutes.",
@@ -82,5 +84,6 @@ TEXTS = {
         "phone_keyboard_text": "📱 Send phone number",
         "confirm_yes": "✅ I agree",
         "confirm_no": "❌ No",
+        "skip_btn": "⏭ Skip",
     }
 }

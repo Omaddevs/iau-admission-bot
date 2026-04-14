@@ -9,7 +9,7 @@ def export_users_to_excel(users, filename="arizalar.xlsx"):
 
     # Headers
     headers = [
-        "Ism", "Familiya", "Otasining ismi", "Telefon", "Email",
+        "DB ID", "Ism", "Familiya", "Otasining ismi", "Telefon", "Email",
         "Viloyat & Tuman", "Pasport", "Tug'ilgan sana", "Yo'nalish", "Telegram User ID"
     ]
     ws.append(headers)
@@ -17,6 +17,7 @@ def export_users_to_excel(users, filename="arizalar.xlsx"):
     for user in users:
         manzil = f"{user['manzil_viloyat']}, {user['manzil_tuman']}"
         row = [
+            user['id'],
             user['ism'],
             user['familiya'],
             user['otasining_ismi'],

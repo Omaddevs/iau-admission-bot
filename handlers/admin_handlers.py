@@ -3,10 +3,10 @@ from aiogram.filters import Command, BaseFilter
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.context import FSMContext
 
-from config import ADMIN_ID
+from config import ADMIN_IDS, ADMIN_ID
 from keyboards.inline import admin_menu, arizalar_list_keyboard, back_to_admin_keyboard, xabar_turi_keyboard, user_detail_keyboard, settings_menu, admins_list_keyboard
 from states.forms import AdminMessage, AdminSettings
-from database.db import get_stats, get_all_completed_users, get_user, get_all_users_for_message, get_all_started_users, reset_user, get_all_admins, add_admin, remove_admin, get_group_id, set_group_id
+from database.db import get_stats, get_all_completed_users, get_user, get_all_users_for_message, get_all_started_users, reset_user, get_all_admins, add_admin, remove_admin, get_group_id, set_group_id, get_user_by_db_id, delete_user_by_db_id
 from utils.excel_exporter import export_users_to_excel
 from utils.archive import create_user_archive
 
@@ -30,7 +30,18 @@ async def cmd_admin(message: Message):
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     text = "🧑‍💻 <b>Admin Panelga xush kelibsiz!</b>\n\nQuyidagi menyudan kerakli bo'limni tanlang 👇"
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=admin_menu())
+    
+    # Agar xabarda hujjat yoki rasm bo'lsa, 'edit_text' xato beradi (Telegram API cheklovi)
+    if callback.message.document or callback.message.photo:
+        await callback.message.delete()
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=admin_menu())
+    else:
+        try:
+            await callback.message.edit_text(text, parse_mode="HTML", reply_markup=admin_menu())
+        except Exception:
+            # Har qanday kutilmagan xatoda (masalan, matn o'zgarmagan bo'lsa)
+            await callback.message.delete()
+            await callback.message.answer(text, parse_mode="HTML", reply_markup=admin_menu())
 
 @router.callback_query(F.data == "admin_stats")
 async def process_stats(callback: CallbackQuery):
@@ -45,8 +56,6 @@ async def process_stats(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_arizalar")
 async def process_arizalar(callback: CallbackQuery):
-    if callback.from_user.id != ADMIN_ID:
-        return
     users = await get_all_completed_users()
     if not users:
         await callback.message.edit_text("🚫 Hali arizalar yo'q.", reply_markup=back_to_admin_keyboard())
@@ -229,11 +238,52 @@ async def process_remove_admin(message: Message, state: FSMContext):
         await message.answer("❌ Noto'g'ri ID. Raqam kiriting:")
         return
     admin_id = int(message.text)
-    from config import ADMIN_ID
-    if admin_id == int(ADMIN_ID):
-        await message.answer("⚠️ Asosiy bosh adminni o'chirib bo'lmaydi!")
+    from config import ADMIN_IDS
+    if admin_id in ADMIN_IDS:
+        await message.answer("⚠️ .env faylidagi asosiy adminlarni o'chirib bo'lmaydi!")
     else:
         await remove_admin(admin_id)
         await message.answer(f"✅ Admin o'chirildi: <code>{message.text}</code>", parse_mode="HTML")
     await state.clear()
 
+@router.callback_query(F.data == "admin_delete_user_prompt")
+async def process_admin_delete_user_prompt(callback: CallbackQuery, state: FSMContext):
+    text = "🗑 <b>O'chirmoqchi bo'lgan foydalanuvchining DB ID raqamini kiriting:</b>\n\n<i>(DB ID raqam Excel faylining eng chapida joylashgan bo'ladi)</i>"
+    from keyboards.inline import back_to_admin_keyboard
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_admin_keyboard())
+    await state.set_state(AdminSettings.delete_user_id)
+
+@router.message(AdminSettings.delete_user_id)
+async def process_delete_user_input(message: Message, state: FSMContext):
+    if not message.text.isdigit():
+        await message.answer("❌ Noto'g'ri ID. Faqat raqam kiriting:")
+        return
+        
+    db_id = int(message.text)
+    user = await get_user_by_db_id(db_id)
+    
+    if not user:
+        await message.answer(f"🚫 DB ID <b>{db_id}</b> bo'lgan foydalanuvchi topilmadi. Qaytadan kiriting:", parse_mode="HTML")
+        return
+        
+    name = f"{user['ism'] or ''} {user['familiya'] or ''}".strip()
+    if not name:
+        name = "Kiritilmagan"
+        
+    text = (
+        "⚠️ <b>Quyidagi foydalanuvchini bazadan butunlay o'chirib tashlamoqchimisiz?</b>\n\n"
+        f"<b>DB ID:</b> {user['id']}\n"
+        f"<b>Ism Familiya:</b> {name}\n"
+        f"<b>Telefon:</b> {user['telefon'] or 'Yoq'}\n"
+        f"<b>Telegram ID:</b> {user['telegram_id']}"
+    )
+    from keyboards.inline import confirm_delete_user_keyboard
+    await message.answer(text, parse_mode="HTML", reply_markup=confirm_delete_user_keyboard(user['id']))
+    await state.clear()
+
+@router.callback_query(F.data.startswith("confirmdel_"))
+async def process_confirm_deluser(callback: CallbackQuery):
+    db_id = int(callback.data.split("_")[1])
+    await delete_user_by_db_id(db_id)
+    await callback.message.edit_text(f"✅ DB ID <b>{db_id}</b> bo'lgan foydalanuvchi bazadan to'liq o'chirildi!", parse_mode="HTML")
+    await cmd_admin(callback.message)
