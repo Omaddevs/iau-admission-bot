@@ -5,12 +5,11 @@ from aiogram.fsm.context import FSMContext
 
 from states.forms import AdmissionForm
 from keyboards.reply import phone_keyboard, remove_keyboard
-from keyboards.inline import yonalish_keyboard, tasdiqlash_keyboard, language_keyboard, regions_keyboard, districts_keyboard, skip_keyboard
+from keyboards.inline import yonalish_keyboard, tasdiqlash_keyboard, language_keyboard, regions_keyboard, districts_keyboard, yes_no_upload_keyboard
 from database.db import start_user, save_user_data, reset_user
 from utils.texts import TEXTS
 from utils.mapping import YONALISH_MAP
 from config import ADMIN_ID
-import os
 import re
 
 router = Router()
@@ -190,8 +189,36 @@ async def process_pasport_fayl(message: Message, state: FSMContext):
     await state.update_data(pasport_fayl=file_path)
     data = await state.get_data()
     await save_user_data(message.from_user.id, data)
-    await message.answer(TEXTS[lang]["ask_diplom_file"], parse_mode="HTML", reply_markup=skip_keyboard(lang))
-    await state.set_state(AdmissionForm.diplom_fayl)
+    await message.answer(
+        TEXTS[lang]["ask_diplom_decision"],
+        parse_mode="HTML",
+        reply_markup=yes_no_upload_keyboard(lang, "diplom"),
+    )
+    await state.set_state(AdmissionForm.diplom_qaror)
+
+@router.callback_query(AdmissionForm.diplom_qaror, F.data.in_(["diplom_ha", "diplom_yoq"]))
+async def process_diplom_decision(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("language", "uz")
+    choice = "Ha" if callback.data == "diplom_ha" else "Yo'q"
+
+    await state.update_data(diplom_mavjud=choice)
+    await callback.message.edit_text(f"{TEXTS[lang]['ask_diplom_decision']}\n\n<b>Tanlov:</b> {choice}", parse_mode="HTML")
+
+    if callback.data == "diplom_ha":
+        await callback.message.answer(TEXTS[lang]["ask_diplom_file"], parse_mode="HTML")
+        await state.set_state(AdmissionForm.diplom_fayl)
+        return
+
+    await state.update_data(diplom_fayl="-")
+    data = await state.get_data()
+    await save_user_data(callback.from_user.id, data)
+    await callback.message.answer(
+        TEXTS[lang]["ask_certificate_decision"],
+        parse_mode="HTML",
+        reply_markup=yes_no_upload_keyboard(lang, "sertifikat"),
+    )
+    await state.set_state(AdmissionForm.sertifikat_qaror)
 
 @router.message(AdmissionForm.diplom_fayl, F.photo | F.document)
 async def process_diplom_fayl(message: Message, state: FSMContext):
@@ -213,39 +240,34 @@ async def process_diplom_fayl(message: Message, state: FSMContext):
         file_path = f"media/documents/{file_id}_{file_name}"
         await bot.download_file(file.file_path, file_path)
 
-    await state.update_data(diplom_fayl=file_path)
+    await state.update_data(diplom_fayl=file_path, diplom_mavjud="Ha")
     data = await state.get_data()
     await save_user_data(message.from_user.id, data)
-    
-    # Check if we need certificate
-    data = await state.get_data()
-    yonalish = data.get("yonalish", "")
-    if "English" in yonalish or "ingliz" in yonalish.lower():
-        await message.answer(TEXTS[lang]["ask_certificate"], parse_mode="HTML", reply_markup=skip_keyboard(lang))
-        await state.set_state(AdmissionForm.sertifikat_fayl)
-    else:
-        await state.update_data(sertifikat_fayl="")
-        data = await state.get_data()
-        await show_confirmation(message, data, state)
+    await message.answer(
+        TEXTS[lang]["ask_certificate_decision"],
+        parse_mode="HTML",
+        reply_markup=yes_no_upload_keyboard(lang, "sertifikat"),
+    )
+    await state.set_state(AdmissionForm.sertifikat_qaror)
 
-@router.callback_query(AdmissionForm.diplom_fayl, F.data == "skip_step")
-async def process_skip_diploma(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(diplom_fayl="-")
+@router.callback_query(AdmissionForm.sertifikat_qaror, F.data.in_(["sertifikat_ha", "sertifikat_yoq"]))
+async def process_certificate_decision(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("language", "uz")
+    choice = "Ha" if callback.data == "sertifikat_ha" else "Yo'q"
+
+    await state.update_data(sertifikat_mavjud=choice)
+    await callback.message.edit_text(f"{TEXTS[lang]['ask_certificate_decision']}\n\n<b>Tanlov:</b> {choice}", parse_mode="HTML")
+
+    if callback.data == "sertifikat_ha":
+        await callback.message.answer(TEXTS[lang]["ask_certificate"], parse_mode="HTML")
+        await state.set_state(AdmissionForm.sertifikat_fayl)
+        return
+
+    await state.update_data(sertifikat_fayl="-")
     data = await state.get_data()
     await save_user_data(callback.from_user.id, data)
-    lang = data.get("language", "uz")
-    
-    # Hide the skip button
-    await callback.message.edit_text(TEXTS[lang]["ask_diplom_file"] + "\n\n<i>(⏭ Tashlab ketildi)</i>", parse_mode="HTML")
-    
-    yonalish = data.get("yonalish", "")
-    if "English" in yonalish or "ingliz" in yonalish.lower():
-        await callback.message.answer(TEXTS[lang]["ask_certificate"], parse_mode="HTML", reply_markup=skip_keyboard(lang))
-        await state.set_state(AdmissionForm.sertifikat_fayl)
-    else:
-        await state.update_data(sertifikat_fayl="")
-        data = await state.get_data()
-        await show_confirmation(callback.message, data, state)
+    await show_confirmation(callback.message, data, state)
 
 @router.message(AdmissionForm.sertifikat_fayl, F.photo | F.document)
 async def process_sertifikat(message: Message, state: FSMContext):
@@ -267,23 +289,10 @@ async def process_sertifikat(message: Message, state: FSMContext):
         file_path = f"media/documents/{file_id}_{file_name}"
         await bot.download_file(file.file_path, file_path)
 
-    await state.update_data(sertifikat_fayl=file_path)
+    await state.update_data(sertifikat_fayl=file_path, sertifikat_mavjud="Ha")
     data = await state.get_data()
     await save_user_data(message.from_user.id, data)
     await show_confirmation(message, data, state)
-
-@router.callback_query(AdmissionForm.sertifikat_fayl, F.data == "skip_step")
-async def process_skip_certificate(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(sertifikat_fayl="-")
-    data = await state.get_data()
-    await save_user_data(callback.from_user.id, data)
-    lang = data.get("language", "uz")
-    
-    # Hide the skip button
-    await callback.message.edit_text(TEXTS[lang]["ask_certificate"] + "\n\n<i>(⏭ Tashlab ketildi)</i>", parse_mode="HTML")
-    
-    data = await state.get_data()
-    await show_confirmation(callback.message, data, state)
 
 async def show_confirmation(message: Message, data: dict, state: FSMContext):
     lang = data.get("language", "uz")

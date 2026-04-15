@@ -51,13 +51,17 @@ async def init_db():
                 pasport_raqam TEXT,
                 pasport_fayl TEXT,
                 tugilgan_sana TEXT,
+                diplom_mavjud TEXT,
                 diplom_fayl TEXT,
                 yonalish TEXT,
                 talim_shakli TEXT,
+                sertifikat_mavjud TEXT,
                 sertifikat_fayl TEXT,
                 status TEXT
             )
         """)
+        await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS diplom_mavjud TEXT")
+        await db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS sertifikat_mavjud TEXT")
         await db.execute("""
             CREATE TABLE IF NOT EXISTS admins (
                 telegram_id BIGINT PRIMARY KEY
@@ -124,8 +128,8 @@ async def save_user_data(telegram_id, data: dict, status=None):
     fields = [
         "ism", "familiya", "otasining_ismi", "telefon", "email",
         "manzil_viloyat", "manzil_tuman", "manzil_mahalla", "manzil_kocha", "manzil_uy",
-        "pasport_raqam", "pasport_fayl", "tugilgan_sana", "diplom_fayl",
-        "yonalish", "talim_shakli", "sertifikat_fayl"
+        "pasport_raqam", "pasport_fayl", "tugilgan_sana", "diplom_mavjud", "diplom_fayl",
+        "yonalish", "talim_shakli", "sertifikat_mavjud", "sertifikat_fayl"
     ]
     query_parts = []
     values = []

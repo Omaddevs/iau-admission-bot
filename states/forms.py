@@ -12,9 +12,11 @@ class AdmissionForm(StatesGroup):
     pasport_raqam = State()
     pasport_fayl = State()
     tugilgan_sana = State()
+    diplom_qaror = State()
     diplom_fayl = State()
     yonalish = State()
     msc_shakl = State()
+    sertifikat_qaror = State()
     sertifikat_fayl = State()
     tasdiqlash = State()
 

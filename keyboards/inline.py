@@ -80,6 +80,17 @@ def skip_keyboard(lang="uz"):
         ]
     )
 
+def yes_no_upload_keyboard(lang="uz", prefix="upload"):
+    from utils.texts import TEXTS
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=TEXTS[lang]["yes_btn"], callback_data=f"{prefix}_ha"),
+                InlineKeyboardButton(text=TEXTS[lang]["no_btn"], callback_data=f"{prefix}_yoq")
+            ]
+        ]
+    )
+
 def admin_menu():
     return InlineKeyboardMarkup(
         inline_keyboard=[
